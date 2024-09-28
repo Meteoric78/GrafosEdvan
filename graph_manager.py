@@ -133,56 +133,57 @@ def networkx_to_cytoscape(G):
 
     return elements
 
-def reconstruct_graph_from_elements(elements, directed=False):
-    """
-    Reconstrói um grafo NetworkX a partir dos elementos do Cytoscape.
-    
-    Parâmetros:
-    - elements (list): Lista de elementos do Cytoscape (nós e arestas).
-    - directed (bool): Define se o grafo será direcionado.
-    
-    Retorna:
-    - G (networkx.Graph ou networkx.DiGraph): O grafo reconstruído.
-    """
-    G = nx.DiGraph() if directed else nx.Graph()
-    
-    for element in elements:
-        data = element.get('data', {})
-        if 'source' in data and 'target' in data:
-            # É uma aresta
-            source = data['source']
-            target = data['target']
-            edge_attrs = {}
-            if 'color' in data:
-                edge_attrs['color'] = data['color']
-            if 'weight' in data and data['weight'] != '':
-                try:
-                    edge_attrs['weight'] = float(data['weight'])
-                except ValueError:
-                    edge_attrs['weight'] = 1.0  # Valor padrão em caso de erro
-            G.add_edge(source, target, **edge_attrs)
-        else:
-            # É um nó
-            node_id = data.get('id')
-            node_attrs = {}
-            if 'label' in data:
-                node_attrs['label'] = data['label']
-            if 'color' in data:
-                node_attrs['color'] = data['color']
-            if 'group' in data:
-                try:
-                    node_attrs['group'] = int(data['group'])
-                except ValueError:
-                    node_attrs['group'] = 0  # Valor padrão em caso de erro
-            position = element.get('position', {})
-            if 'x' in position and 'y' in position:
-                node_attrs['position'] = {
-                    'x': float(position['x']),
-                    'y': float(position['y'])
-                }
-            G.add_node(node_id, **node_attrs)
-    
-    return G
+
+#def reconstruct_graph_from_elements(elements, directed=False):
+#    """
+#    Reconstrói um grafo NetworkX a partir dos elementos do Cytoscape.
+#    
+#    Parâmetros:
+#    - elements (list): Lista de elementos do Cytoscape (nós e arestas).
+#    - directed (bool): Define se o grafo será direcionado.
+#    
+#    Retorna:
+#    - G (networkx.Graph ou networkx.DiGraph): O grafo reconstruído.
+#    """
+#    G = nx.DiGraph() if directed else nx.Graph()
+#    
+#    for element in elements:
+#        data = element.get('data', {})
+#        if 'source' in data and 'target' in data:
+#            # É uma aresta
+#            source = data['source']
+#            target = data['target']
+#            edge_attrs = {}
+#            if 'color' in data:
+#                edge_attrs['color'] = data['color']
+#            if 'weight' in data and data['weight'] != '':
+#                try:
+#                    edge_attrs['weight'] = float(data['weight'])
+#                except ValueError:
+#                    edge_attrs['weight'] = 1.0  # Valor padrão em caso de erro
+#            G.add_edge(source, target, **edge_attrs)
+#        else:
+#            # É um nó
+#            node_id = data.get('id')
+#            node_attrs = {}
+#            if 'label' in data:
+#                node_attrs['label'] = data['label']
+#            if 'color' in data:
+#                node_attrs['color'] = data['color']
+#            if 'group' in data:
+#                try:
+#                    node_attrs['group'] = int(data['group'])
+#                except ValueError:
+#                    node_attrs['group'] = 0  # Valor padrão em caso de erro
+#            position = element.get('position', {})
+#            if 'x' in position and 'y' in position:
+#                node_attrs['position'] = {
+#                    'x': float(position['x']),
+#                    'y': float(position['y'])
+#                }
+#            G.add_node(node_id, **node_attrs)
+#    
+#    return G
 
 if __name__ == '__main__':
     # By default, create an undirected graph
