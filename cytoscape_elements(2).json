@@ -1,0 +1,130 @@
+[
+   {
+      "data": {
+         "id": "1",
+         "label": "1",
+         "group": 0,
+         "color": "#0074D9"
+      },
+      "position": {
+         "x": 0,
+         "y": 0
+      },
+      "classes": "grupo-0"
+   },
+   {
+      "data": {
+         "id": "2",
+         "label": "2",
+         "group": 1,
+         "color": "#00FF00"
+      },
+      "position": {
+         "x": 86.98757016856665,
+         "y": -77.36189642040559
+      },
+      "classes": "grupo-1"
+   },
+   {
+      "data": {
+         "id": "3",
+         "label": "3",
+         "group": 2,
+         "color": "#0074D9"
+      },
+      "position": {
+         "x": 123.70773298562554,
+         "y": -1.782532175585386
+      },
+      "classes": "grupo-2"
+   },
+   {
+      "data": {
+         "id": "4",
+         "label": "4",
+         "group": 0,
+         "color": "#0074D9"
+      },
+      "position": {
+         "x": -110.16048845117662,
+         "y": -26.73798263378074
+      },
+      "classes": "grupo-0"
+   },
+   {
+      "data": {
+         "id": "5",
+         "label": "5",
+         "group": 1,
+         "color": "#00FF00"
+      },
+      "position": {
+         "x": 52.762952397327304,
+         "y": 84.84853155786422
+      },
+      "classes": "grupo-1"
+   },
+   {
+      "data": {
+         "id": "6",
+         "label": "6",
+         "group": 2,
+         "color": "#0074D9"
+      },
+      "position": {
+         "x": -151.87174135987453,
+         "y": 61.675613275254236
+      },
+      "classes": "grupo-2"
+   },
+   {
+      "data": {
+         "id": "1-2",
+         "source": "1",
+         "target": "2",
+         "color": "#ccc",
+         "label": "",
+         "weight": null
+      }
+   },
+   {
+      "data": {
+         "id": "2-3",
+         "source": "2",
+         "target": "3",
+         "color": "#ccc",
+         "label": "",
+         "weight": null
+      }
+   },
+   {
+      "data": {
+         "id": "3-4",
+         "source": "3",
+         "target": "4",
+         "color": "#ccc",
+         "label": "",
+         "weight": null
+      }
+   },
+   {
+      "data": {
+         "id": "4-5",
+         "source": "4",
+         "target": "5",
+         "color": "#00FF00",
+         "label": "",
+         "weight": null
+      }
+   },
+   {
+      "data": {
+         "id": "5-6",
+         "source": "5",
+         "target": "6",
+         "color": "#ccc",
+         "label": "",
+         "weight": null
+      }
+   }
+]

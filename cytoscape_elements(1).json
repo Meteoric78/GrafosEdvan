@@ -1,0 +1,130 @@
+[
+  {
+    "data": {
+      "id": "1",
+      "label": "1",
+      "group": 0,
+      "color": "#0074D9"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-0"
+  },
+  {
+    "data": {
+      "id": "2",
+      "label": "2",
+      "group": 1,
+      "color": "#00FF00"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-1"
+  },
+  {
+    "data": {
+      "id": "3",
+      "label": "3",
+      "group": 2,
+      "color": "#0074D9"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-2"
+  },
+  {
+    "data": {
+      "id": "4",
+      "label": "4",
+      "group": 0,
+      "color": "#0074D9"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-0"
+  },
+  {
+    "data": {
+      "id": "5",
+      "label": "5",
+      "group": 1,
+      "color": "#00FF00"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-1"
+  },
+  {
+    "data": {
+      "id": "6",
+      "label": "6",
+      "group": 2,
+      "color": "#0074D9"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "classes": "grupo-2"
+  },
+  {
+    "data": {
+      "id": "1-2",
+      "source": "1",
+      "target": "2",
+      "color": "#ccc",
+      "label": "",
+      "weight": null
+    }
+  },
+  {
+    "data": {
+      "id": "2-3",
+      "source": "2",
+      "target": "3",
+      "color": "#ccc",
+      "label": "",
+      "weight": null
+    }
+  },
+  {
+    "data": {
+      "id": "3-4",
+      "source": "3",
+      "target": "4",
+      "color": "#ccc",
+      "label": "",
+      "weight": null
+    }
+  },
+  {
+    "data": {
+      "id": "4-5",
+      "source": "4",
+      "target": "5",
+      "color": "#00FF00",
+      "label": "",
+      "weight": null
+    }
+  },
+  {
+    "data": {
+      "id": "5-6",
+      "source": "5",
+      "target": "6",
+      "color": "#ccc",
+      "label": "",
+      "weight": null
+    }
+  }
+]
