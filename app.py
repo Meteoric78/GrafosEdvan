@@ -1,5 +1,3 @@
-# app.py
-
 import dash
 import dash_cytoscape as cyto
 from dash import html, dcc
@@ -9,33 +7,27 @@ import networkx as nx
 import graph_manager
 import copy
 import json
+from graph_manager import reconstruct_graph_from_elements
 
-# Load the graph data from JSON
 with open('cytoscape_elements(2).json') as f:
     graph_data = json.load(f)
 
-# Load the graph using graph_manager
-G = graph_manager.load_graph()
-elements = graph_manager.networkx_to_cytoscape(G)
-is_directed = G.is_directed()
+is_directed = False
 
 
 nodes = [item for item in graph_data if 'source' not in item['data']]
 edges = [item for item in graph_data if 'source' in item['data']]
 elements = nodes + edges
-#elements = []
+elements = []
 
-# Create the Dash application
 app = dash.Dash(__name__)
 
 app.layout = html.Div([
     html.H1('Visualização Interativa de Grafo com Dash Cytoscape'),
-
-    # Main Div with flex display for two columns
+    # Main Div
     html.Div([
-        # Left Column: Contains all controls
+        # Left Column
         html.Div([
-            # Section to add nodes
             html.Div([
                 dcc.Input(
                     id='input-node-name',
@@ -43,10 +35,12 @@ app.layout = html.Div([
                     placeholder='Nome do novo nó',
                     style={'marginRight': '10px'}
                 ),
-                html.Button('Adicionar Nó', id='btn-add-node', n_clicks=0)
+                html.Button('Adicionar Nó', id='btn-add-node', n_clicks=0),
+                html.Button('Remover Nó', id='btn-remove-node', n_clicks=0),
+                html.Button('BFS', id='btn-bfs', n_clicks=0),
+                html.Button('DFS', id='btn-dfs', n_clicks=0)
             ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
 
-            # Section to add edges manually
             html.Div([
                 dcc.Input(
                     id='input-source-node',
@@ -60,62 +54,28 @@ app.layout = html.Div([
                     placeholder='Nó de destino',
                     style={'marginRight': '10px'}
                 ),
-                html.Button('Adicionar Aresta', id='btn-add-edge', n_clicks=0)
+                html.Button('Adicionar Aresta', id='btn-add-edge', n_clicks=0),
+                html.Button('Remover Aresta', id='btn-remove-edge', n_clicks=0),
+                html.Button('Dijkstra', id='btn-dijkstra', n_clicks=0),
+                html.Button('Bellman Ford', id='btn-bellman-ford', n_clicks=0),
             ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
 
-            # Section to add edges from selection
             html.Div([
                 html.Button('Adicionar Arestas da Seleção', id='btn-add-edges-from-selection', n_clicks=0, style={'marginRight': '10px'}),
-                html.Button('Limpar Seleção', id='btn-clear-selection', n_clicks=0)
-            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
-
-            # Section to remove a specific node
-            html.Div([
-                dcc.Input(
-                    id='input-node-remove',
-                    type='text',
-                    placeholder='ID do nó a remover',
-                    style={'marginRight': '10px'}
-                ),
-                html.Button('Remover Nó', id='btn-remove-node', n_clicks=0)
-            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
-
-            # Section to remove selected nodes
-            html.Div([
-                html.Button('Remover Nós Selecionados', id='btn-remove-selected-nodes', n_clicks=0, style={'marginRight': '10px'})
-            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
-
-            # Section to remove edges by text
-            html.Div([
-                html.H3('Remover Arestas por Texto'),
-                dcc.Input(
-                    id='input-edge-source-remove',
-                    type='text',
-                    placeholder='Nó de origem',
-                    style={'marginRight': '10px', 'marginBottom': '5px'}
-                ),
-                dcc.Input(
-                    id='input-edge-target-remove',
-                    type='text',
-                    placeholder='Nó de destino',
-                    style={'marginRight': '10px', 'marginBottom': '5px'}
-                ),
-                html.Button('Remover Aresta', id='btn-remove-edge', n_clicks=0)
-            ], style={'marginBottom': '20px'}),
-
-            # Section to remove selected edges
-            html.Div([
-                html.Button('Remover Arestas Selecionadas', id='btn-remove-selected-edges', n_clicks=0, style={'marginRight': '10px'})
-            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
-
-            # Section to remove all selected elements
-            html.Div([
                 html.Button('Remover Todos os Selecionados', id='btn-remove-all-selected', n_clicks=0, style={'marginRight': '10px', 'backgroundColor': '#FF4136', 'color': 'white'})
             ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
 
-            # Section to modify colors
+            html.Div([
+                dcc.Input(
+                    id='input-weight',
+                    type='number',
+                    placeholder='Peso da aresta',
+                    style={'marginRight': '10px'}
+                ),
+                html.Button('Alterar Peso das Arestas Selecionadas', id='btn-change-weight-edges', n_clicks=0)
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
+
             html.H3('Modificar Cores'),
-            # Color selection via Dropdown
             html.Div([
                 html.Label('Escolha a cor:'),
                 dcc.Dropdown(
@@ -129,22 +89,17 @@ app.layout = html.Div([
                         {'label': 'Laranja', 'value': '#FFA500'},
                         {'label': 'Preto', 'value': '#000000'},
                         {'label': 'Cinza', 'value': '#808080'},
-                        # Add more colors as needed
                     ],
-                    value='#FF5733',  # Default color
+                    value='#FF5733',
                     clearable=False,
                     style={'marginTop': '5px', 'marginBottom': '10px', 'width': '150px'}
                 ),
             ], style={'marginBottom': '10px'}),
 
-            # Buttons to modify colors
             html.Div([
-                html.Button('Modificar Cor de Nós Selecionados', id='btn-change-color-nodes', n_clicks=0, style={'marginBottom': '10px'}),
-                html.Button('Modificar Cor de Arestas Selecionadas', id='btn-change-color-edges', n_clicks=0, style={'marginBottom': '10px'}),
-                html.Button('Modificar Cor de Todos Itens Selecionados', id='btn-change-color-items', n_clicks=0, style={'marginBottom': '10px'}),
+                html.Button('Modificar Cor de Todos Itens Selecionados', id='btn-change-color-items', n_clicks=0, style={'marginBottom': '10px'})
             ], style={'display': 'flex', 'flexDirection': 'column'}),
 
-            # Section to display graph information
             html.H3('Informações do Grafo'),
             html.Div([
                 html.P(id='graph-info-nodes', children='Número de Vértices: 0'),
@@ -153,14 +108,10 @@ app.layout = html.Div([
                 html.P(id='graph-info-weighted', children='Ponderado: Não'),
             ], style={'marginTop': '20px'}),
 
-            # Button to toggle graph type
             html.Div([
                 html.Button('Alternar Tipo de Grafo', id='btn-toggle-directedness', n_clicks=0, style={'width': '100%', 'padding': '10px', 'backgroundColor': '#0074D9', 'color': 'white'})
             ], style={'marginTop': '30px'}),
 
-            # Add this within the left column Div in app.layout
-
-            # Button to toggle weightedness
             html.Div([
                 html.Button(
                     'Alternar Grafos Ponderados',
@@ -174,7 +125,7 @@ app.layout = html.Div([
                         'marginTop': '10px'
                     }
                 )
-            ], style={'marginTop': '20px'}),
+            ], style={'marginTop': '0px'}),
             html.Div([
                 html.Button(
                     'Exportar como Json',
@@ -188,16 +139,17 @@ app.layout = html.Div([
                         'marginTop': '10px'
                     }
                 )
-            ], style={'marginTop': '20px'})
+            ], style={'marginTop': '0px'})
 
 
         ], style={
-            'width': '30%',              # Set left column width
-            'padding': '20px',           # Internal padding
-            'boxSizing': 'border-box'    # Include padding in width
+            'width': '30%',       
+            'padding': '20px',          
+            'boxSizing': 'border-box'   
         }),
         dcc.Download(id='download-json'),
-        # Right Column: Contains the graph with border
+
+        # Right Column
         html.Div([
             cyto.Cytoscape(
                 id='cytoscape-grafo',
@@ -205,7 +157,6 @@ app.layout = html.Div([
                 layout={'name': 'preset'},
                 style={'width': '100%', 'height': '800px'},
                 stylesheet=[
-                    # Node styles
                     {
                         'selector': 'node',
                         'style': {
@@ -215,7 +166,7 @@ app.layout = html.Div([
                             'width': '70px',
                             'height': '70px',
                             'font-size': '20px',
-                            'background-color': 'data(color)',  # Use color from data
+                            'background-color': 'data(color)',
                             'color': 'white',
                             'border-width': '2px',
                             'border-color': '#001f3f',
@@ -230,24 +181,24 @@ app.layout = html.Div([
                             'border-color': 'yellow'
                         }
                     },
-                    # Edge styles (initially undirected)
+
                     {
                         'selector': 'edge',
                         'style': {
                             'curve-style': 'bezier',
                             'width': 2,
-                            'line-color': 'data(color)',  # Use color from data
-                            'target-arrow-shape': 'none',  # No arrow initially
+                            'line-color': 'data(color)',
+                            'target-arrow-shape': 'none',
                             'target-arrow-color': 'data(color)',
                             'arrow-scale': 1,
                             'selectable': 'True',
-                            'content': 'data(label)',       # Display edge labels for weights
-                            'font-size': '12px',            # Adjust font size for readability
-                            'text-rotation': 'autorotate',  # Rotate text to align with edge direction
-                            'text-margin-y': '-10px',        # Position label above the edge
-                            'text-background-color': '#ffffff',  # Optional: Add background to text for better visibility
-                            'text-background-opacity': 0.7,      # Optional: Set background opacity
-                            'text-background-padding': '3px',    # Optional: Add padding around text
+                            'content': 'data(label)',       
+                            'font-size': '12px',           
+                            'text-rotation': 'autorotate',  
+                            'text-margin-y': '-10px',        
+                            'text-background-color': '#ffffff', 
+                            'text-background-opacity': 0.7, 
+                            'text-background-padding': '3px',
                         }
                     },
                     {
@@ -261,91 +212,43 @@ app.layout = html.Div([
             )
             
         ], style={
-            'width': '70%',                # Set right column width
-            'border': '2px solid #001f3f',# Add border to the graph div
-            'padding': '20px',             # Internal padding
-            'boxSizing': 'border-box'      # Include padding in width
+            'width': '70%',            
+            'border': '2px solid #001f3f',
+            'padding': '20px',            
+            'boxSizing': 'border-box'     
         })
     ], style={
-        'display': 'flex',                 # Set flex layout
-        'flexDirection': 'row',            # Horizontal layout for columns
-        'height': '100vh'                   # Full viewport height
+        'display': 'flex',               
+        'flexDirection': 'row',          
+        'height': '90vh'                  
     }),
 
-    # Store component for selected items (nodes and edges)
+
     dcc.Store(id='store-selected-items', data={'nodes': [], 'edges': []}),
 
-    # Store component for graph type (directed or undirected)
     dcc.Store(id='store-graph-type', data={'directed': is_directed}),
 
-    # Add this alongside other Store components in app.layout
-
-    # Store component for graph weightedness
     dcc.Store(id='store-graph-weighted', data={'weighted': False}),
 
+    dcc.Store(id='state-graph', data=elements),
 
-    # Error dialog to display messages
+    dcc.Store(id='dijkstra-paths-store'),
+
     dcc.ConfirmDialog(
         id='error-dialog',
         message=''
     ),
-
 ])
 
-# Helper function to reconstruct the NetworkX graph from Cytoscape elements
-def reconstruct_graph_from_elements(elements_data, directed=False):
-    """
-    Reconstructs a NetworkX graph from Cytoscape elements.
-    
-    Parameters:
-    - elements_data (list): List of Cytoscape elements.
-    - directed (bool): If True, creates a DiGraph. Otherwise, Graph.
-    
-    Returns:
-    - G (networkx.Graph or networkx.DiGraph): Reconstructed graph.
-    """
-    if directed:
-        G = nx.DiGraph()
-    else:
-        G = nx.Graph()
-
-    # Reconstruct nodes
-    for element in elements_data:
-        if 'source' not in element['data']:
-            node_id = element['data']['id']
-            label = element['data'].get('label', node_id)
-            group = element['data'].get('group', 0)
-            color = element['data'].get('color', '#0074D9')  # Default color
-            G.add_node(node_id, label=label, group=group, color=color)
-
-    # Reconstruct edges
-    for element in elements_data:
-        if 'source' in element['data']:
-            source = element['data']['source']
-            target = element['data']['target']
-            color = element['data'].get('color', '#ccc')  # Default color
-            weight = element['data'].get('weight', None)  # Optional weight
-            if weight is not None:
-                G.add_edge(source, target, color=color, weight=weight)
-            else:
-                G.add_edge(source, target, color=color)
-
-    return G
-
-# Callback to update the selection list (nodes and edges)
 @app.callback(
     Output('store-selected-items', 'data'),
     [Input('cytoscape-grafo', 'selectedNodeData'),
-     Input('cytoscape-grafo', 'selectedEdgeData'),
-     Input('btn-clear-selection', 'n_clicks')],
+     Input('cytoscape-grafo', 'selectedEdgeData')],
     [State('store-selected-items', 'data'),
      State('cytoscape-grafo', 'elements'),
      State('store-graph-type', 'data')]
 )
-def update_selection_list(selectedNodeData, selectedEdgeData, n_clicks_clear, selection_data, elements_data, graph_type):
-    """
-    Updates the list of selected items (nodes and edges) based on user interactions.
-    """
+def update_selection_list(selectedNodeData, selectedEdgeData, selection_data, elements_data, graph_type):
     directed = graph_type['directed']
     ctx = callback_context
     if not ctx.triggered:
@@ -356,32 +259,27 @@ def update_selection_list(selectedNodeData, selectedEdgeData, n_clicks_clear, se
     if triggered_id == 'btn-clear-selection':
         return {'nodes': [], 'edges': []}
 
-    # Reconstruct the graph to get current nodes and edges
     G = reconstruct_graph_from_elements(elements_data, directed=directed)
     existing_nodes = set(G.nodes)
     existing_edges = set(G.edges())
 
-    # Update selection by removing items that no longer exist
     selection_nodes = [node_id for node_id in selection_data['nodes'] if node_id in existing_nodes]
     selection_edges = [edge_id for edge_id in selection_data['edges'] if edge_id in existing_edges]
 
     if triggered_id == 'cytoscape-grafo':
-        # Current list of selected node IDs
+
         new_selected_nodes = [node['id'] for node in selectedNodeData] if selectedNodeData else []
-        # Current list of selected edge IDs
+
         new_selected_edges = [edge['id'] for edge in selectedEdgeData] if selectedEdgeData else []
 
-        # Nodes added to selection
         added_nodes = [node_id for node_id in new_selected_nodes if node_id not in selection_nodes]
-        # Nodes removed from selection
+
         removed_nodes = [node_id for node_id in selection_nodes if node_id not in new_selected_nodes]
 
-        # Edges added to selection
         added_edges = [edge_id for edge_id in new_selected_edges if edge_id not in selection_edges]
-        # Edges removed from selection
+
         removed_edges = [edge_id for edge_id in selection_edges if edge_id not in new_selected_edges]
 
-        # Update the selection lists
         for node_id in added_nodes:
             selection_nodes.append(node_id)
         for node_id in removed_nodes:
@@ -392,28 +290,28 @@ def update_selection_list(selectedNodeData, selectedEdgeData, n_clicks_clear, se
         for edge_id in removed_edges:
             selection_edges.remove(edge_id)
 
-    # Update the selection with nodes and edges
     return {'nodes': selection_nodes, 'edges': selection_edges}
+
+
 @app.callback(
     Output("download-json", "data"),
     Input("btn-export", "n_clicks"),
     State("cytoscape-grafo", "elements"),
-    prevent_initial_call=True  # Prevents the callback from firing when the app loads
+    prevent_initial_call=True
 )
 def display_elements_as_json(n_clicks, elements):
     if n_clicks:
         try:
-            # Attempt to serialize the elements to JSON
+
             elements_json = json.dumps(elements, indent=3)
-            # Return the JSON content with the specified filename
+
             return dict(content=elements_json, filename="cytoscape_elements.json")
         except Exception as e:
-            # Handle any exceptions that occur during serialization
+
             error_message = {"error": str(e)}
             error_json = json.dumps(error_message, indent=3)
             return dict(content=error_json, filename="error.json")
-# Combined callback to handle adding, removing, and modifying colors of nodes and edges
-# Callback to handle adding, removing, modifying, and toggling weightedness of nodes and edges
+
 @app.callback(
     Output('cytoscape-grafo', 'elements'),
     Output('error-dialog', 'displayed'),
@@ -421,14 +319,13 @@ def display_elements_as_json(n_clicks, elements):
     [
         Input('btn-add-node', 'n_clicks'),
         Input('btn-add-edge', 'n_clicks'),
+        Input('btn-bfs', 'n_clicks'),
+        Input('btn-dfs', 'n_clicks'),
+        Input('btn-dijkstra', 'n_clicks'),
+        Input('btn-bellman-ford', 'n_clicks'),
         Input('btn-add-edges-from-selection', 'n_clicks'),
-        Input('btn-remove-node', 'n_clicks'),
-        Input('btn-remove-selected-nodes', 'n_clicks'),
-        Input('btn-remove-edge', 'n_clicks'),
-        Input('btn-remove-selected-edges', 'n_clicks'),
+        Input('btn-change-weight-edges', 'n_clicks'),
         Input('btn-remove-all-selected', 'n_clicks'),
-        Input('btn-change-color-nodes', 'n_clicks'),
-        Input('btn-change-color-edges', 'n_clicks'),
         Input('btn-change-color-items', 'n_clicks'),
         Input('btn-toggle-directedness', 'n_clicks'),
         Input('btn-toggle-weighted', 'n_clicks'),
@@ -439,60 +336,76 @@ def display_elements_as_json(n_clicks, elements):
         State('input-node-name', 'value'),
         State('input-source-node', 'value'),
         State('input-target-node', 'value'),
-        State('input-node-remove', 'value'),
-        State('input-edge-source-remove', 'value'),
-        State('input-edge-target-remove', 'value'),
+        State('input-weight', 'value'),
         State('dropdown-color', 'value'),
         State('store-selected-items', 'data'),
         State('store-graph-type', 'data'),
-        State('store-graph-weighted', 'data'),
+        State('store-graph-weighted', 'data')
     ],
     prevent_initial_call=True
 )
 def update_graph(
-    btn_add_node_clicks, btn_add_edge_clicks, btn_add_edges_selection_clicks,
-    btn_remove_node_clicks, btn_remove_selected_nodes_clicks,
-    btn_remove_edge_clicks, btn_remove_selected_edges_clicks,
+    btn_add_node_clicks, btn_add_edge_clicks, btn_bfs_clicks, btn_dfs_clicks, btn_dijkstra_clicks, btn_bellman_ford_clicks,
+    btn_add_edges_selection_clicks, btn_change_weight_edges,
     btn_remove_all_selected_clicks,
-    btn_change_color_nodes_clicks, btn_change_color_edges_clicks,
     btn_change_color_items_clicks, btn_toggle_directedness_clicks,
     btn_toggle_weighted_clicks,
-    elements_data, node_label, source_node, target_node, node_to_remove,
-    edge_source_remove, edge_target_remove,
+    elements_data, node_label, source_node, target_node, input_weight,
     selected_color, selection_data, graph_type, graph_weighted
 ):
-    """
-    Updates the graph based on user interactions, including toggling weightedness.
-    """
     directed = graph_type['directed']
-    weighted = graph_weighted.get('weighted', False)  # Current weighted state
+    weighted = graph_weighted.get('weighted', False)
     ctx = callback_context
+    resultado_busca = ""
 
     if not ctx.triggered:
         return elements_data, False, ''
 
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Reconstruct the NetworkX graph from current elements
     G = reconstruct_graph_from_elements(elements_data, directed=directed)
 
     try:
         if triggered_id == 'btn-add-node':
             if node_label:
                 node_label = node_label.strip()
-                G = graph_manager.add_node(G, node_label)
+                G = graph_manager.cyto_add_node(G, node_label)
+                
                 elements = graph_manager.networkx_to_cytoscape(G)
+
                 return elements, False, ''
             else:
                 return elements_data, True, 'Por favor, insira o nome do nó.'
+
+        elif triggered_id == 'btn-remove-node':
+            if node_label:
+                node_label = node_label.strip()
+                G = graph_manager.cyto_remove_node(G, node_label)
+                elements = graph_manager.networkx_to_cytoscape(G)
+                return elements, False, ''
+            else:
+                return elements_data, True, 'Por favor, insira o nome do nó a ser removido.'
 
         elif triggered_id == 'btn-add-edge':
             if source_node and target_node:
                 source_node = source_node.strip()
                 target_node = target_node.strip()
-                G = graph_manager.add_edge(G, source_node, target_node)
+                G = graph_manager.cyto_add_edge(G, source_node, target_node)
                 elements = graph_manager.networkx_to_cytoscape(G)
                 return elements, False, ''
+            else:
+                return elements_data, True, 'Por favor, insira os IDs dos nós de origem e destino.'
+
+        elif triggered_id == 'btn-remove-edge':
+            if source_node and target_node:
+                source_node = source_node.strip()
+                target_node = target_node.strip()
+                try:
+                    G = graph_manager.cyto_remove_edge(G, source_node, target_node)
+                    elements = graph_manager.networkx_to_cytoscape(G)
+                    return elements, False, ''
+                except nx.NetworkXError as e:
+                    return elements_data, True, str(e)
             else:
                 return elements_data, True, 'Por favor, insira os IDs dos nós de origem e destino.'
 
@@ -504,7 +417,7 @@ def update_graph(
                 source = selection_data['nodes'][i]
                 target = selection_data['nodes'][i + 1]
                 try:
-                    G = graph_manager.add_edge(G, source, target)
+                    G = graph_manager.cyto_add_edge(G, source, target)
                 except nx.NetworkXError as e:
                     error_messages.append(str(e))
             elements = graph_manager.networkx_to_cytoscape(G)
@@ -513,79 +426,28 @@ def update_graph(
             else:
                 return elements, False, ''
 
-        elif triggered_id == 'btn-remove-node':
-            if node_to_remove:
-                node_to_remove = node_to_remove.strip()
-                G = graph_manager.remove_node(G, node_to_remove)
-                elements = graph_manager.networkx_to_cytoscape(G)
-                return elements, False, ''
-            else:
-                return elements_data, True, 'Por favor, insira o ID do nó a ser removido.'
-
-        elif triggered_id == 'btn-remove-selected-nodes':
-            if selection_data['nodes']:
-                error_messages = []
-                for node_id in selection_data['nodes'].copy():
-                    try:
-                        G = graph_manager.remove_node(G, node_id)
-                    except nx.NetworkXError as e:
-                        error_messages.append(str(e))
-                elements = graph_manager.networkx_to_cytoscape(G)
-                if error_messages:
-                    return elements, True, '\n'.join(error_messages)
-                else:
-                    return elements, False, ''
-            else:
-                return elements_data, True, 'Nenhum nó selecionado para remover.'
-
-        elif triggered_id == 'btn-remove-edge':
-            if edge_source_remove and edge_target_remove:
-                edge_source_remove = edge_source_remove.strip()
-                edge_target_remove = edge_target_remove.strip()
-                if directed:
-                    edge_id = f"{edge_source_remove}->{edge_target_remove}"
-                else:
-                    sorted_nodes = sorted([edge_source_remove, edge_target_remove])
-                    edge_id = f"{sorted_nodes[0]}-{sorted_nodes[1]}"
-                try:
-                    G = graph_manager.remove_edge(G, edge_source_remove, edge_target_remove)
-                    elements = graph_manager.networkx_to_cytoscape(G)
-                    return elements, False, ''
-                except nx.NetworkXError as e:
-                    return elements_data, True, str(e)
-            else:
-                return elements_data, True, 'Por favor, insira os IDs dos nós de origem e destino da aresta a remover.'
-
-        elif triggered_id == 'btn-remove-selected-edges':
+        elif triggered_id == 'btn-change-weight-edges':
             if selection_data['edges']:
-                error_messages = []
-                for edge_id in selection_data['edges'].copy():
-                    try:
-                        if directed:
-                            source, target = edge_id.split('->')
-                        else:
-                            source, target = edge_id.split('-')
-                        G = graph_manager.remove_edge(G, source, target)
-                    except nx.NetworkXError as e:
-                        error_messages.append(str(e))
-                elements = graph_manager.networkx_to_cytoscape(G)
-                if error_messages:
-                    return elements, True, '\n'.join(error_messages)
-                else:
-                    return elements, False, ''
+                new_elements = copy.deepcopy(elements_data)
+                for element in new_elements:
+                    if 'source' in element['data']:
+                        edge_id = element['data']['id']
+                        if edge_id in selection_data['edges']:
+                            element['data']['weight'] = input_weight
+                return new_elements, False, ''
             else:
-                return elements_data, True, 'Nenhuma aresta selecionada para remover.'
+                return elements_data, True, 'Por favor, selecione um peso para alterar.'
 
         elif triggered_id == 'btn-remove-all-selected':
             error_messages = []
-            # Remove selected nodes
+
             if selection_data['nodes']:
                 for node_id in selection_data['nodes'].copy():
                     try:
-                        G = graph_manager.remove_node(G, node_id)
+                        G = graph_manager.cyto_remove_node(G, node_id)
                     except nx.NetworkXError as e:
                         error_messages.append(str(e))
-            # Remove selected edges
+
             if selection_data['edges']:
                 for edge_id in selection_data['edges'].copy():
                     try:
@@ -593,7 +455,7 @@ def update_graph(
                             source, target = edge_id.split('->')
                         else:
                             source, target = edge_id.split('-')
-                        G = graph_manager.remove_edge(G, source, target)
+                        G = graph_manager.cyto_remove_edge(G, source, target)
                     except nx.NetworkXError as e:
                         error_messages.append(str(e))
             elements = graph_manager.networkx_to_cytoscape(G)
@@ -602,35 +464,9 @@ def update_graph(
             else:
                 return elements, False, ''
 
-        elif triggered_id == 'btn-change-color-nodes':
-            if selected_color:
-                # Create a deep copy to ensure Dash detects the changes
-                new_elements = copy.deepcopy(elements_data)
-                for element in new_elements:
-                    if 'source' not in element['data']:
-                        node_id = element['data']['id']
-                        if node_id in selection_data['nodes']:
-                            element['data']['color'] = selected_color
-                return new_elements, False, ''
-            else:
-                return elements_data, True, 'Por favor, selecione uma cor.'
-
-        elif triggered_id == 'btn-change-color-edges':
-            if selected_color:
-                # Create a deep copy to ensure Dash detects the changes
-                new_elements = copy.deepcopy(elements_data)
-                for element in new_elements:
-                    if 'source' in element['data']:
-                        edge_id = element['data']['id']
-                        if edge_id in selection_data['edges']:
-                            element['data']['color'] = selected_color
-                return new_elements, False, ''
-            else:
-                return elements_data, True, 'Por favor, selecione uma cor.'
-
         elif triggered_id == 'btn-change-color-items':
             if selected_color:
-                # Create a deep copy to ensure Dash detects the changes
+
                 new_elements = copy.deepcopy(elements_data)
                 for element in new_elements:
                     if 'source' not in element['data']:
@@ -646,7 +482,7 @@ def update_graph(
                 return elements_data, True, 'Por favor, selecione uma cor.'
 
         elif triggered_id == 'btn-toggle-directedness':
-            # Toggle the graph type
+
             new_directed = not directed
             if new_directed:
                 G = G.to_directed()
@@ -656,35 +492,173 @@ def update_graph(
             return elements, False, ''
 
         elif triggered_id == 'btn-toggle-weighted':
-            # Toggle the weightedness
+
             weighted = not weighted
             if weighted:
-                # Assign a default weight to all edges if not already weighted
+
                 for u, v, data in G.edges(data=True):
                     if 'weight' not in data:
-                        data['weight'] = 1.0  
+                        data['weight'] = 1.0
+                    data['label'] = str(data['weight'])
             else:
-                # Remove weights from all edges
-                for u, v in G.edges():
-                    if 'weight' in G.edges[u, v]:
-                        del G.edges[u, v]['weight']
-            # Convert the graph back to Cytoscape elements
+
+                for u, v, data in G.edges(data=True):
+                    data['label'] = '' 
+
             elements = graph_manager.networkx_to_cytoscape(G)
             return elements, False, ''
 
 
+        elif triggered_id == 'btn-bfs':
+            if node_label:
+                node_label = node_label.strip()
+                bfs_result = nx.bfs_tree(G, node_label)
+                resultado_busca = f"BFS a partir de {node_label}: {list(bfs_result)}"
+
+                bfs_edges = list(bfs_result.edges())
+                print(bfs_edges)
+
+                new_elements = copy.deepcopy(elements_data)
+                for element in new_elements:
+                    if 'source' in element['data'] and 'target' in element['data']:
+                        edge = (element['data']['source'], element['data']['target'])
+                        if edge in bfs_edges:
+                            element['data']['color'] = '#000000'
+                        else:
+                            element['data']['color'] = "#ccc"
+                return new_elements, False, ''
+    
+        elif triggered_id == 'btn-dfs':
+            if node_label:
+                node_label = node_label.strip()
+
+                dfs_edges = []
+                visited = set()
+
+                is_directed = G.is_directed()
+
+                def add_edges(dfs_edge_list):
+                    for edge in dfs_edge_list:
+                        if not is_directed:
+                            dfs_edges.append(tuple(sorted(edge)))
+                        else:
+                            dfs_edges.append(edge)
+
+                if node_label in G:
+                    edges = list(nx.dfs_edges(G, node_label))
+                    add_edges(edges)
+                    visited.update([node_label] + [v for _, v in edges])
+                else:
+                    resultado_busca = f"Node '{node_label}' not found in the graph."
+                    return elements_data, False, resultado_busca
+
+                for node in G.nodes():
+                    if node not in visited:
+                        edges = list(nx.dfs_edges(G, node))
+                        add_edges(edges)
+                        visited.update([node] + [v for _, v in edges])
+
+                resultado_busca = f"DFS completed. Total DFS edges: {len(dfs_edges)}"
+
+                new_elements = copy.deepcopy(elements_data)
+                for element in new_elements:
+                    if 'source' in element['data'] and 'target' in element['data']:
+                        edge = (element['data']['source'], element['data']['target'])
+                        if not is_directed:
+                            edge_sorted = tuple(sorted(edge))
+                            if edge_sorted in dfs_edges:
+                                element['data']['color'] = '#123456'
+                            else:
+                                element['data']['color'] = "#ccc"
+                        else:
+                            if edge in dfs_edges:
+                                element['data']['color'] = '#123456'
+                            else:
+                                element['data']['color'] = "#ccc"
+            return new_elements, False, ''
+
+        elif triggered_id == 'btn-dijkstra':
+            if source_node and target_node:
+                source = source_node.strip()
+                finish = target_node.strip()
+
+                if source not in G.nodes:
+                    return elements_data, True, f"Source node '{source}' does not exist in the graph."
+
+                if finish not in G.nodes:
+                    return elements_data, True, f"Finish node '{finish}' does not exist in the graph."
+
+                try:
+                    path = nx.dijkstra_path(G, source, finish, weight='weight')
+                    length = nx.dijkstra_path_length(G, source, finish, weight='weight')
+                    resultado_busca = f"Dijkstra's shortest path from {source} to {finish}: {' -> '.join(path)}\nTotal length: {length}"
+
+                    dijkstra_edges = list(zip(path[:-1], path[1:]))
+                    print(f"Dijkstra Edges: {dijkstra_edges}")
+
+                    new_elements = copy.deepcopy(elements_data)
+
+                    for element in new_elements:
+                        if 'source' in element['data'] and 'target' in element['data']:
+                            element['data']['color'] = '#ccc'
+
+                    for element in new_elements:
+                        if 'source' in element['data'] and 'target' in element['data']:
+                            edge = (element['data']['source'], element['data']['target'])
+                            if edge in dijkstra_edges or (edge[1], edge[0]) in dijkstra_edges:
+                                element['data']['color'] = '#AA6600'
+                    
+                    return new_elements, False, ''
+                except nx.NetworkXNoPath:
+                    return elements_data, True, f"No path found from {source} to {finish}."
+            return elements_data, False, ''
+
+        elif triggered_id == 'btn-bellman-ford':
+            if source_node and target_node:
+                source = source_node.strip()
+                finish = target_node.strip()
+
+                if source not in G.nodes:
+                    return elements_data, True, f"Source node '{source}' does not exist in the graph."
+
+                if finish not in G.nodes:
+                    return elements_data, True, f"Finish node '{finish}' does not exist in the graph."
+
+                try:
+                    path = nx.bellman_ford_path(G, source, finish, weight='weight')
+                    length = nx.bellman_ford_path_length(G, source, finish, weight='weight')
+                    resultado_busca = f"Dijkstra's shortest path from {source} to {finish}: {' -> '.join(path)}\nTotal length: {length}"
+
+                    bellman_ford_edges = list(zip(path[:-1], path[1:]))
+                    print(f"Bellman-Ford Edges: {bellman_ford_edges}")
+
+                    new_elements = copy.deepcopy(elements_data)
+
+                    for element in new_elements:
+                        if 'source' in element['data'] and 'target' in element['data']:
+                            element['data']['color'] = '#ccc'
+
+                    for element in new_elements:
+                        if 'source' in element['data'] and 'target' in element['data']:
+                            edge = (element['data']['source'], element['data']['target'])
+                            if edge in bellman_ford_edges or (edge[1], edge[0]) in bellman_ford_edges:
+                                element['data']['color'] = '#AA6600'
+                    
+                    return new_elements, False, ''
+                except nx.NetworkXNoPath:
+                    return elements_data, True, f"No path found from {source} to {finish}."
+            return elements_data, False, ''
+
+        if resultado_busca: 
+            print(resultado_busca)
         else:
             return elements_data, False, ''
 
     except nx.NetworkXError as e:
-        # In case of error, display the error message
         return elements_data, True, str(e)
 
-    # For any other case, return the elements unchanged
     return elements_data, False, ''
 
-
-# Callback to toggle the graph type in the store
 @app.callback(
     Output('store-graph-type', 'data'),
     Input('btn-toggle-directedness', 'n_clicks'),
@@ -695,8 +669,6 @@ def toggle_graph_type(n_clicks, graph_type):
     if n_clicks:
         graph_type['directed'] = not graph_type['directed']
     return graph_type
-
-# Add this new callback to handle updating the weighted store
 
 @app.callback(
     Output('store-graph-weighted', 'data'),
@@ -712,20 +684,14 @@ def toggle_weighted(n_clicks, graph_weighted):
         graph_weighted['weighted'] = not graph_weighted['weighted']
     return graph_weighted
 
-
-# Callback to update the Cytoscape stylesheet based on graph type
 @app.callback(
     Output('cytoscape-grafo', 'stylesheet'),
     Input('store-graph-type', 'data')
 )
 def update_stylesheet(graph_type):
-    """
-    Updates the Cytoscape stylesheet to show arrows if the graph is directed.
-    """
     directed = graph_type['directed']
     if directed:
         stylesheet = [
-            # Node styles
             {
                 'selector': 'node',
                 'style': {
@@ -750,7 +716,6 @@ def update_stylesheet(graph_type):
                     'border-color': 'yellow'
                 }
             },
-            # Directed edge styles
             {
                 'selector': 'edge',
                 'style': {
@@ -761,13 +726,13 @@ def update_stylesheet(graph_type):
                     'target-arrow-color': 'data(color)',
                     'arrow-scale': 1,
                     'selectable': 'True',
-                    'content': 'data(label)',       # Display edge labels for weights
-                    'font-size': '12px',            # Adjust font size for readability
-                    'text-rotation': 'autorotate',  # Rotate text to align with edge direction
-                    'text-margin-y': '-10px',        # Position label above the edge
-                    'text-background-color': '#ffffff',  # Optional: Add background to text for better visibility
-                    'text-background-opacity': 0.7,      # Optional: Set background opacity
-                    'text-background-padding': '3px',    # Optional: Add padding around text
+                    'content': 'data(label)',     
+                    'font-size': '12px',           
+                    'text-rotation': 'autorotate',  
+                    'text-margin-y': '-10px',       
+                    'text-background-color': '#ffffff',  
+                    'text-background-opacity': 0.7,      
+                    'text-background-padding': '3px',    
                 }
             },
             {
@@ -780,7 +745,6 @@ def update_stylesheet(graph_type):
         ]
     else:
         stylesheet = [
-            # Node styles
             {
                 'selector': 'node',
                 'style': {
@@ -805,7 +769,6 @@ def update_stylesheet(graph_type):
                     'border-color': 'yellow'
                 }
             },
-            # Undirected edge styles
             {
                 'selector': 'edge',
                 'style': {
@@ -816,13 +779,13 @@ def update_stylesheet(graph_type):
                     'target-arrow-color': 'data(color)',
                     'arrow-scale': 1,
                     'selectable': 'True',
-                    'content': 'data(label)',       # Display edge labels for weights
-                    'font-size': '12px',            # Adjust font size for readability
-                    'text-rotation': 'autorotate',  # Rotate text to align with edge direction
-                    'text-margin-y': '-10px',        # Position label above the edge
-                    'text-background-color': '#ffffff',  # Optional: Add background to text for better visibility
-                    'text-background-opacity': 0.7,      # Optional: Set background opacity
-                    'text-background-padding': '3px',    # Optional: Add padding around text
+                    'content': 'data(label)',      
+                    'font-size': '12px',           
+                    'text-rotation': 'autorotate',  
+                    'text-margin-y': '-10px',        
+                    'text-background-color': '#ffffff',  
+                    'text-background-opacity': 0.7,     
+                    'text-background-padding': '3px',   
                 }
             },
             {
@@ -835,8 +798,6 @@ def update_stylesheet(graph_type):
         ]
     return stylesheet
 
-
-# Callback to update graph information
 @app.callback(
     [Output('graph-info-nodes', 'children'),
      Output('graph-info-edges', 'children'),
@@ -844,12 +805,9 @@ def update_stylesheet(graph_type):
      Output('graph-info-weighted', 'children')],
     [Input('cytoscape-grafo', 'elements'),
      Input('store-graph-type', 'data'),
-     Input('store-graph-weighted', 'data')]  # Adicionado
+     Input('store-graph-weighted', 'data')]
 )
 def update_graph_info(elements_data, graph_type, graph_weighted):
-    """
-    Updates the graph information displayed in the interface, incluindo o estado ponderado.
-    """
     directed = graph_type['directed']
     weighted = graph_weighted.get('weighted', False)
     G = reconstruct_graph_from_elements(elements_data, directed=directed)
@@ -868,8 +826,5 @@ def update_graph_info(elements_data, graph_type, graph_weighted):
         f"Orientado: {directed_text}",
         f"Ponderado: {weighted_text}"
     )
-
-
-
 if __name__ == '__main__':
     app.run_server(debug=True)
